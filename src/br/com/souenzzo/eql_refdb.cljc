@@ -36,29 +36,35 @@
 (defn tree->db
   [{::keys [db value query attribute->index]}]
   (reduce
-    (fn [db {:keys [key dispatch-key children]}]
+    (fn [db {:keys [key children]}]
       (if (ref? key)
         (if children
           (let [current-value (get value key)
                 final-value (into {}
-                                  (map (fn [{:keys [dispatch-key children]}]
-                                         (let [index-key (get attribute->index dispatch-key)
-                                               final-value (get current-value dispatch-key)]
-
+                                  (map (fn [{:keys [dispatch-key children] :as node}]
+                                         (let [final-value (get current-value dispatch-key)
+                                               index-key (or (get attribute->index dispatch-key)
+                                                             (-> node :meta :ident)
+                                                             (-> final-value meta :ident))]
                                            [dispatch-key (if children
                                                            (if (sequential? final-value)
-                                                             (map #(find % index-key)
-                                                                  final-value)
+                                                             (mapv #(find % index-key)
+                                                                   final-value)
                                                              (find final-value index-key))
                                                            final-value)])))
                                   children)
                 db (reduce
-                     (fn [db {:keys [dispatch-key children]}]
-                       (let [index-key (get attribute->index dispatch-key)
-                             final-value (get current-value dispatch-key)]
+                     (fn [db {:keys [dispatch-key children]
+                              :as   node}]
+                       (let [final-value (get current-value dispatch-key)
+                             index-key (or (get attribute->index dispatch-key)
+                                           (-> node :meta :ident)
+                                           (-> final-value meta :ident))]
                          (if children
                            (if (sequential? final-value)
                              (reduce (fn [db final-value]
+                                       (when-not index-key
+                                         (throw (ex-info "aa" {})))
                                        (tree->db {::db               db
                                                   ::value            {(find final-value index-key) final-value}
                                                   ::query            (eql/ast->query {:type     :root
