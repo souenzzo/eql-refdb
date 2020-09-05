@@ -1,7 +1,6 @@
 (ns br.com.souenzzo.eql-refdb-test
   (:require [br.com.souenzzo.eql-refdb :as refdb]
-            [clojure.test :refer [deftest is testing]]
-            [clojure.pprint :as pp]))
+            [clojure.test :refer [deftest is testing]]))
 
 (deftest db->tree
   (is (= {:user/contatcs [{:user/name "refdb"}]
@@ -37,6 +36,17 @@
                                           {:user/contatcs [:user/name
                                                            {:user/contatcs [{:user/contatcs [{:user/contatcs [:user/name]}]}]}]}]}]}))))
 
+
+(deftest ignore-mutations
+  (is (= {:user/id {1 {:user/id   1
+                       :user/name "refdb"}}}
+         (refdb/tree->db
+           {::refdb/attribute->index {}
+            ::refdb/value            {'foo {[:user/id 1] {:user/id   1
+                                                          :user/name "refdb"}}}
+            ::refdb/query            '[{(foo {:bar 42})
+                                        [{[:user/id 1] [:user/id
+                                                        :user/name]}]}]}))))
 
 (deftest tree->db
   (is (= {:user/id {1 {:user/id   1
